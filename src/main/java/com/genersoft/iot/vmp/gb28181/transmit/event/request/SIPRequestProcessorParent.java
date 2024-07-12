@@ -29,15 +29,17 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-/**    
- * @description:处理接收IPCamera发来的SIP协议请求消息
+/**
+ * @description: 处理接收IPCamera发来的SIP协议请求消息
  * @author: songww
- * @date:   2020年5月3日 下午4:42:22     
+ * @date:   2020年5月3日 下午4:42:22
  */
 public abstract class SIPRequestProcessorParent {
 
 	private final static Logger logger = LoggerFactory.getLogger(SIPRequestProcessorParent.class);
-
+	/**
+	 * 发送SIP消息
+	 */
 	@Autowired
 	private SIPSender sipSender;
 

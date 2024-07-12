@@ -24,6 +24,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  *  run方法是一个Spring Boot的CommandLineRunner接口的实现，该方法在Spring Boot应用启动后自动执行
+ *
+ *  它负责 SIP（会话初始化协议）层的初始化和配置
  */
 @Component
 @Order(value=10)
@@ -39,13 +41,25 @@ public class SipLayer implements CommandLineRunner {
 
 	@Autowired
 	private UserSetting userSetting;
-
+    /**
+     分别存储 TCP 和 UDP 的 SipProviderImpl 实例。
+     */
 	private final Map<String, SipProviderImpl> tcpSipProviderMap = new ConcurrentHashMap<>();
 	private final Map<String, SipProviderImpl> udpSipProviderMap = new ConcurrentHashMap<>();
+	/**
+	 * 存储监控的 IP 地址。
+	 */
 	private final List<String> monitorIps = new ArrayList<>();
 
+	/**
+	 * 这个方法在应用启动时执行，用于配置 SIP 监听的 IP 地址和端口。
+	 * @param args
+	 */
 	@Override
 	public void run(String... args) {
+		/*
+		 如果 sipConfig.getIp() 为空，则自动获取本机的 IPv4 地址，忽略本地环回地址和 Docker 地址。
+		 */
 		if (ObjectUtils.isEmpty(sipConfig.getIp())) {
 			try {
 				// 获得本机的所有网络接口
@@ -87,9 +101,11 @@ public class SipLayer implements CommandLineRunner {
 		}
 
 		sipConfig.setShowIp(String.join(",", monitorIps));
+		// 设置 SipFactory 的路径。
 		SipFactory.getInstance().setPathName("gov.nist");
 		if (monitorIps.size() > 0) {
 			for (String monitorIp : monitorIps) {
+				//为每个 monitorIp 添加监听点，如果没有成功添加任何监听点，则退出程序。
 				addListeningPoint(monitorIp, sipConfig.getPort());
 			}
 			if (udpSipProviderMap.size() + tcpSipProviderMap.size() == 0) {
@@ -98,22 +114,36 @@ public class SipLayer implements CommandLineRunner {
 		}
 	}
 
+	/**
+	 * addListeningPoint 方法是配置和启动 SIP 服务的关键部分。
+	 * 这个方法负责为指定的 IP 地址和端口创建 SIP 监听点，并将其添加到相应的提供者 (SipProviderImpl) 中。
+	 * @param monitorIp
+	 * @param port
+	 */
 	private void addListeningPoint(String monitorIp, int port){
 		SipStackImpl sipStack;
 		try {
-			sipStack = (SipStackImpl)SipFactory.getInstance().createSipStack(DefaultProperties.getProperties("GB28181_SIP", userSetting.getSipLog()));
+//			创建一个 SipStack 实例，这是 SIP 协议栈的核心。
+			sipStack = (SipStackImpl)SipFactory.getInstance()
+					// 加载默认配置。
+					.createSipStack(DefaultProperties.getProperties("GB28181_SIP", userSetting.getSipLog()));
+//			设置消息解析工厂。
 			sipStack.setMessageParserFactory(new GbStringMsgParserFactory());
 		} catch (PeerUnavailableException e) {
 			logger.error("[SIP SERVER] SIP服务启动失败， 监听地址{}失败,请检查ip是否正确", monitorIp);
 			return;
 		}
-
+       // . 创建 TCP 监听点并启动
 		try {
+			// 创建一个 TCP 类型的 ListeningPoint 监听点
 			ListeningPoint tcpListeningPoint = sipStack.createListeningPoint(monitorIp, port, "TCP");
+			// 为 ListeningPoint 创建 SipProvider 实例。
 			SipProviderImpl tcpSipProvider = (SipProviderImpl)sipStack.createSipProvider(tcpListeningPoint);
-
+			// 设置自动处理对话错误。
 			tcpSipProvider.setDialogErrorsAutomaticallyHandled();
+			// 为 SipProvider 添加 SIP 监听器。
 			tcpSipProvider.addSipListener(sipProcessorObserver);
+			// 将 SipProvider 添加到 tcpSipProviderMap 中。
 			tcpSipProviderMap.put(monitorIp, tcpSipProvider);
 			logger.info("[SIP SERVER] tcp://{}:{} 启动成功", monitorIp, port);
 		} catch (TransportNotSupportedException
@@ -123,13 +153,17 @@ public class SipLayer implements CommandLineRunner {
 			logger.error("[SIP SERVER] tcp://{}:{} SIP服务启动失败,请检查端口是否被占用或者ip是否正确"
 					, monitorIp, port);
 		}
-
+		/**
+		 * 创建 UDP 监听点并启动
+		 */
 		try {
+			//创建一个 UDP 类型的 udpListeningPoint 监听点
 			ListeningPoint udpListeningPoint = sipStack.createListeningPoint(monitorIp, port, "UDP");
-
+			// 为 udpListeningPoint 创建 SipProvider 实例。
 			SipProviderImpl udpSipProvider = (SipProviderImpl)sipStack.createSipProvider(udpListeningPoint);
+			// 为 SipProvider 添加 SIP 监听器。
 			udpSipProvider.addSipListener(sipProcessorObserver);
-
+			// 将 SipProvider 添加到 udpSipProviderMap
 			udpSipProviderMap.put(monitorIp, udpSipProvider);
 
 			logger.info("[SIP SERVER] udp://{}:{} 启动成功", monitorIp, port);
@@ -176,6 +210,11 @@ public class SipLayer implements CommandLineRunner {
 		return tcpSipProviderMap.get(ip);
 	}
 
+	/**
+	 * 获取本地 IP 的方法
+	 * @param deviceLocalIp
+	 * @return
+	 */
 	public String getLocalIp(String deviceLocalIp) {
 		if (monitorIps.size() == 1) {
 			return monitorIps.get(0);

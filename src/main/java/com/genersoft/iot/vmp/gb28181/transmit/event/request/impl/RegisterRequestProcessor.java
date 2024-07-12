@@ -68,6 +68,10 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
     @Autowired
     private UserSetting userSetting;
 
+    /**
+     * 实现了 InitializingBean 接口的类会在其所有属性被设置后调用 afterPropertiesSet 方法
+     * @throws Exception
+     */
     @Override
     public void afterPropertiesSet() throws Exception {
         // 添加消息处理的订阅
