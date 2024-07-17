@@ -260,6 +260,13 @@ public class ZLMRESTfulUtils {
         return sendPost(mediaServerItem, "getMediaInfo",param, null);
     }
 
+    /**
+     *  请求 /index/api/getRtpInfo 接口
+     *  功能：获取rtp代理时的某路ssrc rtp信息
+     * @param mediaServerItem
+     * @param stream_id
+     * @return
+     */
     public JSONObject getRtpInfo(MediaServer mediaServerItem, String stream_id){
         Map<String, Object> param = new HashMap<>();
         param.put("stream_id",stream_id);
@@ -299,6 +306,13 @@ public class ZLMRESTfulUtils {
         return sendPost(mediaServerItem,"setServerConfig",param, null);
     }
 
+    /**
+     * 请求接口 /index/api/openRtpServer
+     * 创建GB28181 RTP接收端口，如果该端口接收数据超时，则会自动被回收(不用调用closeRtpServer接口)
+     * @param mediaServerItem
+     * @param param
+     * @return
+     */
     public JSONObject openRtpServer(MediaServer mediaServerItem, Map<String, Object> param){
         return sendPost(mediaServerItem, "openRtpServer",param, null);
     }

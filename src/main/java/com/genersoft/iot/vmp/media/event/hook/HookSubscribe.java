@@ -28,6 +28,10 @@ public class HookSubscribe {
 
     /**
      * 流到来的处理
+     *  通过调用 ApplicationEventPublisher 的 publishEvent 方法来完成事件的发布
+     *
+     * 使用了 @EventListener 注解，并且其参数是 MediaArrivalEvent 类型，
+     * 因此当发布的事件是 MediaArrivalEvent 或其子类的实例时，Spring 会自动将事件传递给这个方法。
      */
     @Async("taskExecutor")
     @EventListener

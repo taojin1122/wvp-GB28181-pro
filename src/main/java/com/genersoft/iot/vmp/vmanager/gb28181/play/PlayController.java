@@ -149,6 +149,7 @@ public class PlayController {
 				wvpResult.setMsg(msg);
 			}
 			requestMessage.setData(wvpResult);
+
 			// 此处必须释放所有请求
 			resultHolder.invokeAllResult(requestMessage);
 		});

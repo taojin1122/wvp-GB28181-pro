@@ -900,7 +900,7 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
         }
 
         logger.info("{} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getIp(), ssrcInfo.getPort());
-        Hook hook = Hook.getInstance(HookType.on_media_arrival, "rtp", stream, mediaServerItem.getId());
+        Hook hook = Hook.getInstance(HookType.on_media_arrival, "myrtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(hook, (hookData) -> {
             if (event != null) {
                 event.response(hookData);

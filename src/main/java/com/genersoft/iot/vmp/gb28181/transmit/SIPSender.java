@@ -42,6 +42,14 @@ public class SIPSender {
         transmitRequest(ip, message, null, null);
     }
 
+    /**
+     *
+     * @param ip ip
+     * @param message  消息类型  request 或 response
+     * @param errorEvent 错误事件
+     * @throws SipException
+     * @throws ParseException
+     */
     public void transmitRequest(String ip, Message message, SipSubscribe.Event errorEvent) throws SipException, ParseException {
         transmitRequest(ip, message, errorEvent, null);
     }
@@ -65,29 +73,35 @@ public class SIPSender {
             CallIdHeader callIdHeader = (CallIdHeader) message.getHeader(CallIdHeader.NAME);
             // 添加错误订阅
             if (errorEvent != null) {
+                logger.error("-----------错误的订阅---------------------------");
                 sipSubscribe.addErrorSubscribe(callIdHeader.getCallId(), (eventResult -> {
                     sipSubscribe.removeErrorSubscribe(eventResult.callId);
                     sipSubscribe.removeOkSubscribe(eventResult.callId);
                     errorEvent.response(eventResult);
                 }));
             }
+
             // 添加订阅
             if (okEvent != null) {
+                logger.error("-----------成功的订阅---------------------------");
                 sipSubscribe.addOkSubscribe(callIdHeader.getCallId(), eventResult -> {
                     sipSubscribe.removeOkSubscribe(eventResult.callId);
                     sipSubscribe.removeErrorSubscribe(eventResult.callId);
                     okEvent.response(eventResult);
                 });
             }
+
             if ("TCP".equals(transport)) {
                 SipProviderImpl tcpSipProvider = sipLayer.getTcpSipProvider(ip);
                 if (tcpSipProvider == null) {
                     logger.error("[发送信息失败] 未找到tcp://{}的监听信息", ip);
                     return;
                 }
+                // 发送sip请求
                 if (message instanceof Request) {
                     tcpSipProvider.sendRequest((Request)message);
                 }else if (message instanceof Response) {
+                    // 发送sip响应
                     tcpSipProvider.sendResponse((Response)message);
                 }
 
@@ -105,6 +119,14 @@ public class SIPSender {
             }
     }
 
+    /**
+     * 根据传入的IP地址和传输协议（如TCP或UDP）来获取一个新的CallIdHeader。
+     *
+     * CallIdHeader在SIP（Session Initiation Protocol，会话初始协议）中用于唯一标识一个会话或事务。
+     * @param ip
+     * @param transport
+     * @return
+     */
     public CallIdHeader getNewCallIdHeader(String ip, String transport){
         if (ObjectUtils.isEmpty(transport)) {
             return sipLayer.getUdpSipProvider().getNewCallId();

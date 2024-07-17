@@ -61,7 +61,7 @@ public class InviteStreamServiceImpl implements IInviteStreamService {
     @Async("taskExecutor")
     @EventListener
     public void onApplicationEvent(MediaDepartureEvent event) {
-        if ("rtsp".equals(event.getSchema()) && "rtp".equals(event.getApp())) {
+        if ("rtsp".equals(event.getSchema()) && "myrtp".equals(event.getApp())) {
             InviteInfo inviteInfo = getInviteInfoByStream(null, event.getStream());
             if (inviteInfo != null && (inviteInfo.getType() == InviteSessionType.PLAY || inviteInfo.getType() == InviteSessionType.PLAYBACK)) {
                 removeInviteInfo(inviteInfo);
@@ -78,6 +78,11 @@ public class InviteStreamServiceImpl implements IInviteStreamService {
         }
     }
 
+    /**
+     *  更新redis 中的会话信息
+     * @param inviteInfo
+     * @param time
+     */
     @Override
     public void updateInviteInfo(InviteInfo inviteInfo, Long time) {
         if (inviteInfo == null || (inviteInfo.getDeviceId() == null || inviteInfo.getChannelId() == null)) {
@@ -165,6 +170,14 @@ public class InviteStreamServiceImpl implements IInviteStreamService {
         return inviteInfoInDb;
     }
 
+    /**
+     *       获取点播的状态信息
+     * @param type
+     * @param deviceId
+     * @param channelId
+     * @param stream
+     * @return
+     */
     @Override
     public InviteInfo getInviteInfo(InviteSessionType type, String deviceId, String channelId, String stream) {
         String key = VideoManagerConstants.INVITE_PREFIX +
@@ -184,6 +197,13 @@ public class InviteStreamServiceImpl implements IInviteStreamService {
         return (InviteInfo) redisTemplate.opsForValue().get(scanResult.get(0));
     }
 
+    /**
+     * 获取点播的状态信息
+     * @param type
+     * @param deviceId
+     * @param channelId
+     * @return
+     */
     @Override
     public InviteInfo getInviteInfoByDeviceAndChannel(InviteSessionType type, String deviceId, String channelId) {
         return getInviteInfo(type, deviceId, channelId, null);

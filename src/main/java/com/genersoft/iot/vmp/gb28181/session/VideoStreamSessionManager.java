@@ -29,7 +29,7 @@ public class VideoStreamSessionManager {
 	private RedisTemplate<Object, Object> redisTemplate;
 
 	/**
-	 * 添加一个点播/回放的事务信息
+	 *  添加一个点播/回放的事务信息
 	 * 后续可以通过流Id/callID
 	 * @param deviceId 设备ID
 	 * @param channelId 通道ID
@@ -142,7 +142,7 @@ public class VideoStreamSessionManager {
 		}
 		return ssrcTransaction.getSsrc();
 	}
-	
+
 	public void remove(String deviceId, String channelId, String stream) {
 		List<SsrcTransaction> ssrcTransactionList = getSsrcTransactionForAll(deviceId, channelId, null, stream);
 		if (ssrcTransactionList == null || ssrcTransactionList.isEmpty()) {

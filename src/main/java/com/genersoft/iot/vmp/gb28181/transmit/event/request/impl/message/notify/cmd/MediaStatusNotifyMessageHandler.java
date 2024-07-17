@@ -106,7 +106,7 @@ public class MediaStatusNotifyMessageHandler extends SIPRequestProcessorParent i
                     logger.error("[录像流]推送完毕，收到关流通知， 发送BYE失败 {}", e.getMessage());
                 }
                 // 去除监听流注销自动停止下载的监听
-                Hook hook = Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcTransaction.getStream(), ssrcTransaction.getMediaServerId());
+                Hook hook = Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcTransaction.getStream(), ssrcTransaction.getMediaServerId());
                 subscribe.removeSubscribe(hook);
                 // 如果级联播放，需要给上级发送此通知 TODO 多个上级同时观看一个下级 可能存在停错的问题，需要将点播CallId进行上下级绑定
                 SendRtpItem sendRtpItem =  redisCatchStorage.querySendRTPServer(null, ssrcTransaction.getChannelId(), null, null);

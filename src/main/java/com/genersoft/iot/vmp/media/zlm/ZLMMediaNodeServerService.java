@@ -221,6 +221,15 @@ public class ZLMMediaNodeServerService implements IMediaNodeServerService {
         return jsonObject.getInteger("code") == 0;
     }
 
+    /**
+     *  获取截图或生成实时截图并返回
+     * @param mediaServer
+     * @param streamUrl
+     * @param timeoutSec
+     * @param expireSec
+     * @param path
+     * @param fileName
+     */
     @Override
     public void getSnap(MediaServer mediaServer, String streamUrl, int timeoutSec, int expireSec, String path, String fileName) {
         zlmresTfulUtils.getSnap(mediaServer, streamUrl, timeoutSec, expireSec, path, fileName);

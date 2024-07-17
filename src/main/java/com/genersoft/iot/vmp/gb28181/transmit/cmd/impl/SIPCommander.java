@@ -75,7 +75,6 @@ public class SIPCommander implements ISIPCommander {
     private IMediaServerService mediaServerService;
 
 
-
     /**
      * 云台方向放控制，使用配置文件中的默认镜头移动速度
      *
@@ -146,8 +145,7 @@ public class SIPCommander implements ISIPCommander {
         strTmp = String.format("%02X", parameter2);
         builder.append(strTmp, 0, 2);
         //优化zoom变倍速率
-        if ((combineCode2 > 0) && (combineCode2 <16))
-        {
+        if ((combineCode2 > 0) && (combineCode2 < 16)) {
             combineCode2 = 16;
         }
         strTmp = String.format("%X", combineCode2);
@@ -187,9 +185,9 @@ public class SIPCommander implements ISIPCommander {
         ptzXml.append("</Info>\r\n");
         ptzXml.append("</Control>\r\n");
 
-        Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()),request);
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
     }
 
     /**
@@ -220,10 +218,8 @@ public class SIPCommander implements ISIPCommander {
         ptzXml.append("</Control>\r\n");
 
 
-
-
-        SIPRequest request = (SIPRequest) headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()),request);
+        SIPRequest request = (SIPRequest) headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
 
     }
 
@@ -251,8 +247,8 @@ public class SIPCommander implements ISIPCommander {
         ptzXml.append("</Control>\r\n");
 
 
-        Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()),request, errorEvent, okEvent);
+        Request request = headerProvider.createMessageRequest(device, ptzXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
 
     }
 
@@ -260,13 +256,16 @@ public class SIPCommander implements ISIPCommander {
      * 请求预览视频流
      *
      * @param device     视频设备
-     * @param channel  预览通道
+     * @param channel    预览通道
      * @param event      hook订阅
      * @param errorEvent sip错误订阅
      */
     @Override
-    public void playStreamCmd(MediaServer mediaServerItem, SSRCInfo ssrcInfo, Device device, DeviceChannel channel,
-                              HookSubscribe.Event event, SipSubscribe.Event okEvent, SipSubscribe.Event errorEvent) throws InvalidArgumentException, SipException, ParseException {
+    public void playStreamCmd(MediaServer mediaServerItem, SSRCInfo ssrcInfo, Device device,
+                              DeviceChannel channel,
+                              HookSubscribe.Event event,
+                              SipSubscribe.Event okEvent,
+                              SipSubscribe.Event errorEvent) throws InvalidArgumentException, SipException, ParseException {
         String stream = ssrcInfo.getStream();
 
         if (device == null) {
@@ -274,17 +273,19 @@ public class SIPCommander implements ISIPCommander {
         }
 
         logger.info("{} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getSdpIp(), ssrcInfo.getPort());
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", stream, mediaServerItem.getId());
+        // 创建ZLM hook 实例
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(rtpHook, (hookData) -> {
             if (event != null) {
                 event.response(hookData);
                 subscribe.removeSubscribe(rtpHook);
             }
         });
+
         String sdpIp;
         if (!ObjectUtils.isEmpty(device.getSdpIp())) {
             sdpIp = device.getSdpIp();
-        }else {
+        } else {
             sdpIp = mediaServerItem.getSdpIp();
         }
         StringBuffer content = new StringBuffer(200);
@@ -349,21 +350,30 @@ public class SIPCommander implements ISIPCommander {
 //			content.append("f=v/2/5/25/1/4000a/1/8/1" + "\r\n"); // 未发现支持此特性的设备
 
 
+        // 创建 INVITE 请求
+        Request request = headerProvider.createInviteRequest(device, channel.getChannelId(), content.toString(),
+                SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,
+                ssrcInfo.getSsrc(),
+                // 获取 CallHeader
+                sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
-        Request request = headerProvider.createInviteRequest(device, channel.getChannelId(), content.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, ssrcInfo.getSsrc(),
-                sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, (e -> {
-            streamSession.remove(device.getDeviceId(), channel.getChannelId(), ssrcInfo.getStream());
-            mediaServerService.releaseSsrc(mediaServerItem.getId(), ssrcInfo.getSsrc());
-            errorEvent.response(e);
-        }), e -> {
-            ResponseEvent responseEvent = (ResponseEvent) e.event;
-            SIPResponse response = (SIPResponse) responseEvent.getResponse();
-            String callId = response.getCallIdHeader().getCallId();
-            streamSession.put(device.getDeviceId(), channel.getChannelId(), callId, stream, ssrcInfo.getSsrc(), mediaServerItem.getId(), response,
-                    InviteSessionType.PLAY);
-            okEvent.response(e);
-        });
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request,
+                // 错误订阅
+                (e -> {
+                    logger.error("-----------错误的父订阅---------------------------");
+                    streamSession.remove(device.getDeviceId(), channel.getChannelId(), ssrcInfo.getStream());
+                    mediaServerService.releaseSsrc(mediaServerItem.getId(), ssrcInfo.getSsrc());
+                    errorEvent.response(e);
+                }),
+                e -> {
+                    logger.error("-----------成功的父订阅---------------------------");
+                    ResponseEvent responseEvent = (ResponseEvent) e.event;
+                    SIPResponse response = (SIPResponse) responseEvent.getResponse();
+                    String callId = response.getCallIdHeader().getCallId();
+                    streamSession.put(device.getDeviceId(), channel.getChannelId(), callId, stream, ssrcInfo.getSsrc(), mediaServerItem.getId(), response,
+                            InviteSessionType.PLAY);
+                    okEvent.response(e);
+                });
     }
 
     /**
@@ -384,7 +394,7 @@ public class SIPCommander implements ISIPCommander {
         String sdpIp;
         if (!ObjectUtils.isEmpty(device.getSdpIp())) {
             sdpIp = device.getSdpIp();
-        }else {
+        } else {
             sdpIp = mediaServerItem.getSdpIp();
         }
         StringBuffer content = new StringBuffer(200);
@@ -449,7 +459,7 @@ public class SIPCommander implements ISIPCommander {
         //ssrc
         content.append("y=" + ssrcInfo.getSsrc() + "\r\n");
 
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
         // 添加订阅
         subscribe.addSubscribe(rtpHook, (hookData) -> {
             if (hookEvent != null) {
@@ -457,12 +467,12 @@ public class SIPCommander implements ISIPCommander {
             }
             subscribe.removeSubscribe(rtpHook);
         });
-        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()), ssrcInfo.getSsrc());
+        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()), ssrcInfo.getSsrc());
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, event -> {
             ResponseEvent responseEvent = (ResponseEvent) event.event;
             SIPResponse response = (SIPResponse) responseEvent.getResponse();
-            streamSession.put(device.getDeviceId(), channelId,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()).getCallId(), ssrcInfo.getStream(), ssrcInfo.getSsrc(), mediaServerItem.getId(), response, InviteSessionType.PLAYBACK);
+            streamSession.put(device.getDeviceId(), channelId, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()).getCallId(), ssrcInfo.getStream(), ssrcInfo.getSsrc(), mediaServerItem.getId(), response, InviteSessionType.PLAYBACK);
             okEvent.response(event);
         });
     }
@@ -486,7 +496,7 @@ public class SIPCommander implements ISIPCommander {
         String sdpIp;
         if (!ObjectUtils.isEmpty(device.getSdpIp())) {
             sdpIp = device.getSdpIp();
-        }else {
+        } else {
             sdpIp = mediaServerItem.getSdpIp();
         }
         StringBuffer content = new StringBuffer(200);
@@ -549,17 +559,17 @@ public class SIPCommander implements ISIPCommander {
         content.append("a=downloadspeed:" + downloadSpeed + "\r\n");
 
         content.append("y=" + ssrcInfo.getSsrc() + "\r\n");//ssrc
-        logger.debug("此时请求下载信令的ssrc===>{}",ssrcInfo.getSsrc());
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
+        logger.debug("此时请求下载信令的ssrc===>{}", ssrcInfo.getSsrc());
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
         // 添加订阅
         CallIdHeader newCallIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
-        String callId= newCallIdHeader.getCallId();
+        String callId = newCallIdHeader.getCallId();
         subscribe.addSubscribe(rtpHook, (hookData) -> {
-            logger.debug("sipc 添加订阅===callId {}",callId);
+            logger.debug("sipc 添加订阅===callId {}", callId);
             hookEvent.response(hookData);
             subscribe.removeSubscribe(rtpHook);
             // 添加流注销的订阅，注销了后向设备发送bye
-            Hook departureHook = Hook.getInstance(HookType.on_media_departure, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
+            Hook departureHook = Hook.getInstance(HookType.on_media_departure, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
             subscribe.addSubscribe(departureHook,
                     (departureHookData) -> {
                         logger.info("[录像]下载结束， 发送BYE");
@@ -572,12 +582,12 @@ public class SIPCommander implements ISIPCommander {
                     });
         });
 
-        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,newCallIdHeader, ssrcInfo.getSsrc());
+        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, newCallIdHeader, ssrcInfo.getSsrc());
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, event -> {
             ResponseEvent responseEvent = (ResponseEvent) event.event;
             SIPResponse response = (SIPResponse) responseEvent.getResponse();
-            String contentString =new String(response.getRawContent());
+            String contentString = new String(response.getRawContent());
             String ssrc = SipUtils.getSsrcFromSdp(contentString);
             streamSession.put(device.getDeviceId(), channelId, response.getCallIdHeader().getCallId(), ssrcInfo.getStream(), ssrc, mediaServerItem.getId(), response, InviteSessionType.DOWNLOAD);
             okEvent.response(event);
@@ -599,7 +609,7 @@ public class SIPCommander implements ISIPCommander {
         }
 
         logger.info("[语音喊话] {} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getIp(), sendRtpItem.getPort());
-        Hook hook = Hook.getInstance(HookType.on_media_arrival, "rtp", stream, mediaServerItem.getId());
+        Hook hook = Hook.getInstance(HookType.on_media_arrival, "myrtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(hook, (hookData) -> {
             if (event != null) {
                 event.response(hookData);
@@ -609,7 +619,7 @@ public class SIPCommander implements ISIPCommander {
 
         CallIdHeader callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
         callIdHeader.setCallId(callId);
-        Hook publishHook = Hook.getInstance(HookType.on_publish, "rtp", stream, mediaServerItem.getId());
+        Hook publishHook = Hook.getInstance(HookType.on_publish, "myrtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(publishHook, (hookData) -> {
             if (eventForPush != null) {
                 eventForPush.response(hookData);
@@ -699,19 +709,19 @@ public class SIPCommander implements ISIPCommander {
      *
      * @param device 视频设备
      */
-	@Override
-	public void audioBroadcastCmd(Device device, String channelId, SipSubscribe.Event okEvent, SipSubscribe.Event errorEvent) throws InvalidArgumentException, SipException, ParseException {
+    @Override
+    public void audioBroadcastCmd(Device device, String channelId, SipSubscribe.Event okEvent, SipSubscribe.Event errorEvent) throws InvalidArgumentException, SipException, ParseException {
         StringBuffer broadcastXml = new StringBuffer(200);
         String charset = device.getCharset();
         broadcastXml.append("<?xml version=\"1.0\" encoding=\"" + charset + "\"?>\r\n");
         broadcastXml.append("<Notify>\r\n");
         broadcastXml.append("<CmdType>Broadcast</CmdType>\r\n");
-        broadcastXml.append("<SN>" + (int)((Math.random()*9+1)*100000) + "</SN>\r\n");
+        broadcastXml.append("<SN>" + (int) ((Math.random() * 9 + 1) * 100000) + "</SN>\r\n");
         broadcastXml.append("<SourceID>" + sipConfig.getId() + "</SourceID>\r\n");
         broadcastXml.append("<TargetID>" + channelId + "</TargetID>\r\n");
         broadcastXml.append("</Notify>\r\n");
 
-        Request request = headerProvider.createMessageRequest(device, broadcastXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, broadcastXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
 
     }
@@ -741,9 +751,8 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent,okEvent);
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
     }
 
     /**
@@ -765,8 +774,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
     }
 
@@ -790,9 +798,8 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent,okEvent);
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
     }
 
     /**
@@ -826,9 +833,8 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent,okEvent);
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
     }
 
     /**
@@ -855,8 +861,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
     }
 
@@ -864,13 +869,13 @@ public class SIPCommander implements ISIPCommander {
      * 看守位控制命令
      *
      * @param device      视频设备
-     * @param channelId      通道id，非通道则是设备本身
+     * @param channelId   通道id，非通道则是设备本身
      * @param enabled     看守位使能：1 = 开启，0 = 关闭
      * @param resetTime   自动归位时间间隔，开启看守位时使用，单位:秒(s)
      * @param presetIndex 调用预置位编号，开启看守位时使用，取值范围0~255
      */
     @Override
-    public void homePositionCmd(Device device, String channelId, Boolean enabled, Integer resetTime, Integer presetIndex, SipSubscribe.Event errorEvent,SipSubscribe.Event okEvent) throws InvalidArgumentException, SipException, ParseException {
+    public void homePositionCmd(Device device, String channelId, Boolean enabled, Integer resetTime, Integer presetIndex, SipSubscribe.Event errorEvent, SipSubscribe.Event okEvent) throws InvalidArgumentException, SipException, ParseException {
 
         StringBuffer cmdXml = new StringBuffer(200);
         String charset = device.getCharset();
@@ -895,9 +900,8 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent,okEvent);
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
     }
 
     /**
@@ -958,8 +962,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Control>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
 
@@ -981,8 +984,7 @@ public class SIPCommander implements ISIPCommander {
         catalogXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
@@ -1005,8 +1007,7 @@ public class SIPCommander implements ISIPCommander {
         catalogXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
 
@@ -1030,8 +1031,7 @@ public class SIPCommander implements ISIPCommander {
         catalogXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, catalogXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
@@ -1075,9 +1075,8 @@ public class SIPCommander implements ISIPCommander {
         recordInfoXml.append("</Query>\r\n");
 
 
-
         Request request = headerProvider.createMessageRequest(device, recordInfoXml.toString(),
-                SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+                SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
     }
@@ -1126,8 +1125,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
 
@@ -1156,8 +1154,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
 
@@ -1183,7 +1180,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Query>\r\n");
 
 
-        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, cmdXml.toString(), null, SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
     }
 
@@ -1206,8 +1203,7 @@ public class SIPCommander implements ISIPCommander {
         mobilePostitionXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createMessageRequest(device, mobilePostitionXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, mobilePostitionXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent);
 
@@ -1231,7 +1227,7 @@ public class SIPCommander implements ISIPCommander {
         subscribePostitionXml.append("<DeviceID>" + device.getDeviceId() + "</DeviceID>\r\n");
         if (device.getSubscribeCycleForMobilePosition() > 0) {
             subscribePostitionXml.append("<Interval>" + device.getMobilePositionSubmissionInterval() + "</Interval>\r\n");
-        }else {
+        } else {
             subscribePostitionXml.append("<Interval>5</Interval>\r\n");
         }
         subscribePostitionXml.append("</Query>\r\n");
@@ -1241,9 +1237,9 @@ public class SIPCommander implements ISIPCommander {
         if (requestOld != null) {
             callIdHeader = SipFactory.getInstance().createHeaderFactory().createCallIdHeader(requestOld.getCallIdHeader().getCallId());
         } else {
-            callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport());
+            callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
         }
-        SIPRequest request = (SIPRequest) headerProvider.createSubscribeRequest(device, subscribePostitionXml.toString(), requestOld, device.getSubscribeCycleForMobilePosition(), "presence",callIdHeader); //Position;id=" + tm.substring(tm.length() - 4));
+        SIPRequest request = (SIPRequest) headerProvider.createSubscribeRequest(device, subscribePostitionXml.toString(), requestOld, device.getSubscribeCycleForMobilePosition(), "presence", callIdHeader); //Position;id=" + tm.substring(tm.length() - 4));
 
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request, errorEvent, okEvent);
         return request;
@@ -1289,8 +1285,7 @@ public class SIPCommander implements ISIPCommander {
         cmdXml.append("</Query>\r\n");
 
 
-
-        Request request = headerProvider.createSubscribeRequest(device, cmdXml.toString(), null, expires, "presence",sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createSubscribeRequest(device, cmdXml.toString(), null, expires, "presence", sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
 
     }
@@ -1312,7 +1307,7 @@ public class SIPCommander implements ISIPCommander {
         if (requestOld != null) {
             callIdHeader = SipFactory.getInstance().createHeaderFactory().createCallIdHeader(requestOld.getCallIdHeader().getCallId());
         } else {
-            callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport());
+            callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
         }
 
         // 有效时间默认为60秒以上
@@ -1339,11 +1334,10 @@ public class SIPCommander implements ISIPCommander {
         dragXml.append(cmdString);
         dragXml.append("</Control>\r\n");
 
-        Request request = headerProvider.createMessageRequest(device, dragXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
+        Request request = headerProvider.createMessageRequest(device, dragXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
         logger.debug("拉框信令： " + request.toString());
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()),request);
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
     }
-
 
 
     /**
@@ -1448,8 +1442,8 @@ public class SIPCommander implements ISIPCommander {
         deviceStatusXml.append("</Notify>\r\n");
 
 
-        Request request = headerProvider.createMessageRequest(device, deviceStatusXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null,sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()),device.getTransport()));
-        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()),request);
+        Request request = headerProvider.createMessageRequest(device, deviceStatusXml.toString(), SipUtils.getNewViaTag(), SipUtils.getNewFromTag(), null, sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
+        sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request);
 
 
     }

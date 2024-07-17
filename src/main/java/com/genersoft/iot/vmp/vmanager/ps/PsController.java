@@ -104,7 +104,7 @@ public class PsController {
         }
         // 注册回调如果rtp收流超时则通过回调发送通知
         if (callBack != null) {
-            Hook hook = Hook.getInstance(HookType.on_rtp_server_timeout, "rtp", stream, mediaServer.getId());
+            Hook hook = Hook.getInstance(HookType.on_rtp_server_timeout, "myrtp", stream, mediaServer.getId());
             // 订阅 zlm启动事件, 新的zlm也会从这里进入系统
             hookSubscribe.addSubscribe(hook,
                     (hookData)->{

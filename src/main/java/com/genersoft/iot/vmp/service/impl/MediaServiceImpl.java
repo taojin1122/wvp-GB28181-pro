@@ -77,9 +77,9 @@ public class MediaServiceImpl implements IMediaService {
         if (app == null || stream == null) {
             return false;
         }
-        if ("rtp".equals(app)) {
-            return true;
-        }
+//        if ("rtp".equals(app)) {
+//            return true;
+//        }
         StreamAuthorityInfo streamAuthorityInfo = redisCatchStorage.getStreamAuthorityInfo(app, stream);
         if (streamAuthorityInfo == null || streamAuthorityInfo.getCallId() == null) {
             return true;
@@ -90,7 +90,7 @@ public class MediaServiceImpl implements IMediaService {
     @Override
     public ResultForOnPublish authenticatePublish(MediaServer mediaServer, String app, String stream, String params) {
         // 推流鉴权的处理
-        if (!"rtp".equals(app)) {
+        if (!"myrtp".equals(app)) {
             StreamProxyItem streamProxyItem = streamProxyService.getStreamProxyByAppAndStream(app, stream);
             if (streamProxyItem != null) {
                 ResultForOnPublish result = new ResultForOnPublish();
@@ -133,13 +133,13 @@ public class MediaServiceImpl implements IMediaService {
         result.setEnable_audio(true);
 
         // 是否录像
-        if ("rtp".equals(app)) {
+        if ("myrtp".equals(app)) {
             result.setEnable_mp4(userSetting.getRecordSip());
         } else {
             result.setEnable_mp4(userSetting.isRecordPushLive());
         }
         // 国标流
-        if ("rtp".equals(app)) {
+        if ("myrtp".equals(app)) {
 
             InviteInfo inviteInfo = inviteStreamService.getInviteInfoByStream(null, stream);
 
@@ -196,7 +196,7 @@ public class MediaServiceImpl implements IMediaService {
         } else if (app.equals("talk")) {
             result.setEnable_audio(true);
         }
-        if (app.equalsIgnoreCase("rtp")) {
+        if (app.equalsIgnoreCase("myrtp")) {
             String receiveKey = VideoManagerConstants.WVP_OTHER_RECEIVE_RTP_INFO + userSetting.getServerId() + "_" + stream;
             OtherRtpSendInfo otherRtpSendInfo = (OtherRtpSendInfo) redisTemplate.opsForValue().get(receiveKey);
 
@@ -213,7 +213,7 @@ public class MediaServiceImpl implements IMediaService {
     public boolean closeStreamOnNoneReader(String mediaServerId, String app, String stream, String schema) {
         boolean result = false;
         // 国标类型的流
-        if ("rtp".equals(app)) {
+        if ("myrtp".equals(app)) {
             result = userSetting.getStreamOnDemand();
             // 国标流， 点播/录像回放/录像下载
             InviteInfo inviteInfo = inviteStreamService.getInviteInfoByStream(null, stream);

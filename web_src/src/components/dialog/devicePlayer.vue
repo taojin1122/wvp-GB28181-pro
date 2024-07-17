@@ -446,6 +446,7 @@ export default {
       if (!!this.$refs[this.activePlayer]) {
         this.$refs[this.activePlayer].pause();
       }
+      console.log("param:", param)
       switch (tab) {
         case "media":
           this.play(param.streamInfo, param.hasAudio)
@@ -480,8 +481,10 @@ export default {
       if (location.protocol === "https:") {
         this.videoUrl = streamInfo[this.player[this.activePlayer][1]]
       } else {
+        console.log(this.player[this.activePlayer],"this.activePlayer][0]")
         this.videoUrl = streamInfo[this.player[this.activePlayer][0]]
       }
+      console.log(this.videoUrl)
       return this.videoUrl;
 
     },

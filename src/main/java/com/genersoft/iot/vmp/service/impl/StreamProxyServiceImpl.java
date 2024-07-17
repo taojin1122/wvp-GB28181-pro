@@ -127,7 +127,7 @@ public class StreamProxyServiceImpl implements IStreamProxyService {
     @Async("taskExecutor")
     @EventListener
     public void onApplicationEvent(MediaNotFoundEvent event) {
-        if ("rtp".equals(event.getApp())) {
+        if ("myrtp".equals(event.getApp())) {
             return;
         }
         // 拉流代理

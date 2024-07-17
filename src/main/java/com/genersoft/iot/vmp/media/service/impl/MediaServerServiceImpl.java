@@ -72,7 +72,9 @@ public class MediaServerServiceImpl implements IMediaServerService {
 
     @Autowired
     private RedisTemplate<Object, Object> redisTemplate;
-
+    /**
+     *  自动注入所有实现了IMediaNodeServerService接口的bean
+     */
     @Autowired
     private Map<String, IMediaNodeServerService> nodeServerServiceMap;
 
@@ -145,7 +147,20 @@ public class MediaServerServiceImpl implements IMediaServerService {
         }
     }
 
-
+    /**
+     *  通知 ZLM服务器 开启 rtp 服务
+     * @param mediaServer
+     * @param streamId
+     * @param presetSsrc
+     * @param ssrcCheck
+     * @param isPlayback
+     * @param port
+     * @param onlyAuto
+     * @param disableAudio
+     * @param reUsePort
+     * @param tcpMode
+     * @return
+     */
     @Override
     public SSRCInfo openRTPServer(MediaServer mediaServer, String streamId, String presetSsrc, boolean ssrcCheck,
                                   boolean isPlayback, Integer port, Boolean onlyAuto, Boolean disableAudio, Boolean reUsePort, Integer tcpMode) {
@@ -158,6 +173,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
         if (presetSsrc != null) {
             ssrc = presetSsrc;
         }else {
+            //是否回放
             if (isPlayback) {
                 ssrc = ssrcFactory.getPlayBackSsrc(mediaServer.getId());
             }else {
@@ -179,6 +195,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
                 logger.info("[openRTPServer] 失败, mediaServer的类型： {}，未找到对应的实现类", mediaServer.getType());
                 return null;
             }
+            // 是否开启ssrc校验，默认关闭，开启可以防止串流 ssrcCheck
             rtpServerPort = mediaNodeServerService.createRTPServer(mediaServer, streamId, ssrcCheck ? Long.parseLong(ssrc) : 0, port, onlyAuto, disableAudio, reUsePort, tcpMode);
         } else {
             rtpServerPort = mediaServer.getRtpProxyPort();
@@ -213,6 +230,11 @@ public class MediaServerServiceImpl implements IMediaServerService {
         mediaNodeServerService.closeRtpServer(mediaServer, streamId, callback);
     }
 
+    /**
+     *  关闭 rtp 服务
+     * @param mediaServerId
+     * @param streamId
+     */
     @Override
     public void closeRTPServer(String mediaServerId, String streamId) {
         MediaServer mediaServer = this.getOne(mediaServerId);
@@ -227,7 +249,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
             logger.info("[closeRTPServer] 失败, mediaServer的类型： {}，未找到对应的实现类", mediaServer.getType());
             return;
         }
-        mediaNodeServerService.closeStreams(mediaServer, "rtp", streamId);
+        mediaNodeServerService.closeStreams(mediaServer, "myrtp", streamId);
     }
 
     @Override
@@ -742,6 +764,15 @@ public class MediaServerServiceImpl implements IMediaServerService {
         return mediaNodeServerService.getFFmpegCMDs(mediaServer);
     }
 
+    /**
+     * 构建一个StreamInfo对象，该对象包含了关于特定流媒体的各种访问信息
+     * @param mediaServerItem
+     * @param app
+     * @param stream
+     * @param mediaInfo
+     * @param callId
+     * @return
+     */
     @Override
     public StreamInfo getStreamInfoByAppAndStream(MediaServer mediaServerItem, String app, String stream, MediaInfo mediaInfo, String callId) {
         return getStreamInfoByAppAndStream(mediaServerItem, app, stream, mediaInfo, null, callId, true);
@@ -777,6 +808,17 @@ public class MediaServerServiceImpl implements IMediaServerService {
         return getStreamInfoByAppAndStreamWithCheck(app, stream, mediaServerId, null, authority);
     }
 
+    /**
+     * 构建一个StreamInfo对象，该对象包含了关于特定流媒体的各种访问信息
+     * @param mediaServer
+     * @param app
+     * @param stream
+     * @param mediaInfo
+     * @param addr
+     * @param callId
+     * @param isPlay
+     * @return
+     */
     @Override
     public StreamInfo getStreamInfoByAppAndStream(MediaServer mediaServer, String app, String stream, MediaInfo mediaInfo, String addr, String callId, boolean isPlay) {
         StreamInfo streamInfoResult = new StreamInfo();
@@ -867,7 +909,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
         sendRtpItem.setChannelId(channelId);
         sendRtpItem.setTcp(isTcp);
         sendRtpItem.setRtcp(rtcp);
-        sendRtpItem.setApp("rtp");
+        sendRtpItem.setApp("myrtp");
         sendRtpItem.setLocalPort(localPort);
         sendRtpItem.setServerId(userSetting.getServerId());
         sendRtpItem.setMediaServerId(mediaServer.getId());

@@ -485,7 +485,7 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                             logger.error("未处理的异常 ", e);
                         }
                     });
-                    sendRtpItem.setApp("rtp");
+                    sendRtpItem.setApp("myrtp");
                     if ("Playback".equalsIgnoreCase(sessionName)) {
                         sendRtpItem.setPlayType(InviteStreamType.PLAYBACK);
                         String startTimeStr = DateUtil.urlFormatter.format(start);
