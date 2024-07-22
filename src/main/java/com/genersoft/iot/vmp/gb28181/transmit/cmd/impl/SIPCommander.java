@@ -273,8 +273,12 @@ public class SIPCommander implements ISIPCommander {
         }
 
         logger.info("{} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getSdpIp(), ssrcInfo.getPort());
-        // 创建ZLM hook 实例
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", stream, mediaServerItem.getId());
+        // 创建ZLM hook 实例，用于监听特定的事件
+        // 这里监听的是on_media_arrival事件，即媒体流到达的事件。
+        // 这里 先添加hook订阅
+        // 向sip 发送 INVITE 命令，当流达到zlm后，zlm服务响应回调
+        // 然后发送 [流到达事件]，封装hookdata 数据，调用response 函数,实现函数回调
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(rtpHook, (hookData) -> {
             if (event != null) {
                 event.response(hookData);
@@ -356,11 +360,12 @@ public class SIPCommander implements ISIPCommander {
                 ssrcInfo.getSsrc(),
                 // 获取 CallHeader
                 sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport()));
-
+        // 发送请求
         sipSender.transmitRequest(sipLayer.getLocalIp(device.getLocalIp()), request,
                 // 错误订阅
                 (e -> {
                     logger.error("-----------错误的父订阅---------------------------");
+                    //
                     streamSession.remove(device.getDeviceId(), channel.getChannelId(), ssrcInfo.getStream());
                     mediaServerService.releaseSsrc(mediaServerItem.getId(), ssrcInfo.getSsrc());
                     errorEvent.response(e);
@@ -370,6 +375,7 @@ public class SIPCommander implements ISIPCommander {
                     ResponseEvent responseEvent = (ResponseEvent) e.event;
                     SIPResponse response = (SIPResponse) responseEvent.getResponse();
                     String callId = response.getCallIdHeader().getCallId();
+                    // 流视频预览请求成功回调  创建一个预览流事务
                     streamSession.put(device.getDeviceId(), channel.getChannelId(), callId, stream, ssrcInfo.getSsrc(), mediaServerItem.getId(), response,
                             InviteSessionType.PLAY);
                     okEvent.response(e);
@@ -459,7 +465,7 @@ public class SIPCommander implements ISIPCommander {
         //ssrc
         content.append("y=" + ssrcInfo.getSsrc() + "\r\n");
 
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
         // 添加订阅
         subscribe.addSubscribe(rtpHook, (hookData) -> {
             if (hookEvent != null) {
@@ -560,7 +566,7 @@ public class SIPCommander implements ISIPCommander {
 
         content.append("y=" + ssrcInfo.getSsrc() + "\r\n");//ssrc
         logger.debug("此时请求下载信令的ssrc===>{}", ssrcInfo.getSsrc());
-        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
+        Hook rtpHook = Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
         // 添加订阅
         CallIdHeader newCallIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
         String callId = newCallIdHeader.getCallId();
@@ -569,7 +575,7 @@ public class SIPCommander implements ISIPCommander {
             hookEvent.response(hookData);
             subscribe.removeSubscribe(rtpHook);
             // 添加流注销的订阅，注销了后向设备发送bye
-            Hook departureHook = Hook.getInstance(HookType.on_media_departure, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
+            Hook departureHook = Hook.getInstance(HookType.on_media_departure, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
             subscribe.addSubscribe(departureHook,
                     (departureHookData) -> {
                         logger.info("[录像]下载结束， 发送BYE");
@@ -609,7 +615,7 @@ public class SIPCommander implements ISIPCommander {
         }
 
         logger.info("[语音喊话] {} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getIp(), sendRtpItem.getPort());
-        Hook hook = Hook.getInstance(HookType.on_media_arrival, "myrtp", stream, mediaServerItem.getId());
+        Hook hook = Hook.getInstance(HookType.on_media_arrival, "rtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(hook, (hookData) -> {
             if (event != null) {
                 event.response(hookData);
@@ -619,7 +625,7 @@ public class SIPCommander implements ISIPCommander {
 
         CallIdHeader callIdHeader = sipSender.getNewCallIdHeader(sipLayer.getLocalIp(device.getLocalIp()), device.getTransport());
         callIdHeader.setCallId(callId);
-        Hook publishHook = Hook.getInstance(HookType.on_publish, "myrtp", stream, mediaServerItem.getId());
+        Hook publishHook = Hook.getInstance(HookType.on_publish, "rtp", stream, mediaServerItem.getId());
         subscribe.addSubscribe(publishHook, (hookData) -> {
             if (eventForPush != null) {
                 eventForPush.response(hookData);

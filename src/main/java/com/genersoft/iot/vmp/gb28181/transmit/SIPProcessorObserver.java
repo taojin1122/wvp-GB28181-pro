@@ -120,6 +120,7 @@ public class SIPProcessorObserver implements ISIPProcessorObserver {
             if (responseEvent.getResponse() != null && sipSubscribe.getErrorSubscribesSize() > 0 ) {
                 CallIdHeader callIdHeader = (CallIdHeader)responseEvent.getResponse().getHeader(CallIdHeader.NAME);
                 if (callIdHeader != null) {
+                    // 获取到错误的订阅事件 封装相应数据 调用 response 函数进行回调
                     SipSubscribe.Event subscribe = sipSubscribe.getErrorSubscribe(callIdHeader.getCallId());
                     if (subscribe != null) {
                         SipSubscribe.EventResult eventResult = new SipSubscribe.EventResult(responseEvent);

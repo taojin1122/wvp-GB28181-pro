@@ -414,6 +414,7 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                         //     * 1 下级已经推流，等待上级平台回复ack
                         //     * 2 推流中
                         sendRtpItem.setStatus(1);
+                        // 缓存推流的信息
                         redisCatchStorage.updateSendRTPSever(sendRtpItem);
                         String sdpIp = mediaServerItemInUSe.getSdpIp();
                         if (!ObjectUtils.isEmpty(platform.getSendStreamIp())) {
@@ -485,7 +486,7 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
                             logger.error("未处理的异常 ", e);
                         }
                     });
-                    sendRtpItem.setApp("myrtp");
+                    sendRtpItem.setApp("rtp");
                     if ("Playback".equalsIgnoreCase(sessionName)) {
                         sendRtpItem.setPlayType(InviteStreamType.PLAYBACK);
                         String startTimeStr = DateUtil.urlFormatter.format(start);
@@ -659,7 +660,7 @@ public class InviteRequestProcessor extends SIPRequestProcessorParent implements
      */
     private void sendProxyStream(SendRtpItem sendRtpItem, MediaServer mediaServerItem, ParentPlatform platform, SIPRequest request) {
         MediaInfo mediaInfo = mediaServerService.getMediaInfo(mediaServerItem, sendRtpItem.getApp(), sendRtpItem.getStream());
-        
+
         if (mediaInfo != null) {
 
                 // 自平台内容

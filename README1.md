@@ -21,9 +21,14 @@
 - sendPushStream
 ### 流媒体配置加载
 4、MediaServerConfig，order=12
-1、初始化 ssrc工厂
+
+- 执行 mediaServerService.update() 初始化 ssrc加载到redis中，每次开启 预览都要从redis取出一个ssrc，并删除。
+
+5、类ZLMMediaServerStatusManger
+- 添加定时任务每10秒执行一次，注册待上线节点，重新连接
 ### 自定义线程配置类 
 - ThreadPoolTaskConfig
 
 ### 概念
 1、SSRC是一个32位的数值标识符，用于标识RTP包流的源，使其不依赖于网络地址。
+2、摄像机推送的流在 zlm 服务器的rtp目录下，是流服务器自己构造的目录，rtp协议只关注ip、端口、数据包

@@ -73,7 +73,7 @@ public class AckRequestProcessor extends SIPRequestProcessorParent implements In
 	private IPlayService playService;
 
 
-	/**   
+	/**
 	 * 处理  ACK请求
 	 */
 	@Override
@@ -83,6 +83,7 @@ public class AckRequestProcessor extends SIPRequestProcessorParent implements In
 		String fromUserId = ((SipURI) ((HeaderAddress) evt.getRequest().getHeader(FromHeader.NAME)).getAddress().getURI()).getUser();
 		String toUserId = ((SipURI) ((HeaderAddress) evt.getRequest().getHeader(ToHeader.NAME)).getAddress().getURI()).getUser();
 		logger.info("[收到ACK]： 来自->{}", fromUserId);
+		// 根据callId  获取 推流的信息对象 包括：推流ip、推流端口等
 		SendRtpItem sendRtpItem =  redisCatchStorage.querySendRTPServer(null, null, null, callIdHeader.getCallId());
 		if (sendRtpItem == null) {
 			logger.warn("[收到ACK]：未找到来自{}，callId: {}", fromUserId, callIdHeader.getCallId());

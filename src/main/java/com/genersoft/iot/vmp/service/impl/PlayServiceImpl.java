@@ -214,7 +214,7 @@ public class PlayServiceImpl implements IPlayService {
     @Async("taskExecutor")
     @EventListener
     public void onApplicationEvent(MediaNotFoundEvent event) {
-        if (!"myrtp".equals(event.getApp())) {
+        if (!"rtp".equals(event.getApp())) {
             return;
         }
         String[] s = event.getStream().split("_");
@@ -305,7 +305,7 @@ public class PlayServiceImpl implements IPlayService {
                 //检查流状态是否就绪，如果就绪则触发成功回调，否则注册回调等待结果并停止播放。
                 String mediaServerId = streamInfo.getMediaServerId();
                 MediaServer mediaInfo = mediaServerService.getOne(mediaServerId);
-                Boolean ready = mediaServerService.isStreamReady(mediaInfo, "myrtp", streamId);
+                Boolean ready = mediaServerService.isStreamReady(mediaInfo, "rtp", streamId);
                 if (ready != null && ready) {
                     callback.run(InviteErrorCode.SUCCESS.getCode(), InviteErrorCode.SUCCESS.getMsg(), streamInfo);
                     inviteStreamService.call(InviteSessionType.PLAY, device.getDeviceId(), channelId, null,
@@ -327,6 +327,7 @@ public class PlayServiceImpl implements IPlayService {
         String streamId = String.format("%s_%s", device.getDeviceId(), channelId);
         // 调用 mediaServerService 开启 RTP 服务器并获取 SSRC 信息 ssrcInfo。
         // SSRC是一个32位的数值标识符，用于标识RTP包流的源，使其不依赖于网络地址
+        // SSRCInfo 包含 rtp服务器端口、流id、ssrc值
         SSRCInfo ssrcInfo = mediaServerService.openRTPServer(mediaServerItem, streamId, ssrc, device.isSsrcCheck(), false, 0, false, !channel.getHasAudio(), false, device.getStreamModeForParam());
         // 如果 SSRC 信息为空，表示资源耗尽，触发错误回调并返回 null
         if (ssrcInfo == null) {
@@ -537,7 +538,7 @@ public class PlayServiceImpl implements IPlayService {
                     streamSession.remove(device.getDeviceId(), channel.getChannelId(), ssrcInfo.getStream());
                     mediaServerService.closeRTPServer(mediaServerItem, ssrcInfo.getStream());
                     // 取消订阅消息监听
-                    subscribe.removeSubscribe(Hook.getInstance(HookType.on_media_arrival, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId()));
+                    subscribe.removeSubscribe(Hook.getInstance(HookType.on_media_arrival, "rtp", ssrcInfo.getStream(), mediaServerItem.getId()));
                 }
             } else {
                 logger.info("[点播超时] 收流超时 deviceId: {}, channelId: {},码流：{}，端口：{}, SSRC: {}",
@@ -697,9 +698,9 @@ public class PlayServiceImpl implements IPlayService {
     private void snapOnPlay(MediaServer mediaServerItemInuse, String deviceId, String channelId, String stream) {
         String streamUrl;
         if (mediaServerItemInuse.getRtspPort() != 0) {
-            streamUrl = String.format("rtsp://127.0.0.1:%s/%s/%s", mediaServerItemInuse.getRtspPort(), "myrtp", stream);
+            streamUrl = String.format("rtsp://127.0.0.1:%s/%s/%s", mediaServerItemInuse.getRtspPort(), "rtp", stream);
         } else {
-            streamUrl = String.format("http://127.0.0.1:%s/%s/%s.live.mp4", mediaServerItemInuse.getHttpPort(), "myrtp", stream);
+            streamUrl = String.format("http://127.0.0.1:%s/%s/%s.live.mp4", mediaServerItemInuse.getHttpPort(), "rtp", stream);
         }
         String path = "snap";
         String fileName = deviceId + "_" + channelId + ".jpg";
@@ -1080,7 +1081,7 @@ public class PlayServiceImpl implements IPlayService {
                             // 不可以马上移除会导致后续接口拿不到下载地址
                             inviteStreamService.updateInviteInfo(inviteInfoForNew, 60 * 15L);
                         };
-                        Hook hook = Hook.getInstance(HookType.on_record_mp4, "myrtp", ssrcInfo.getStream(), mediaServerItem.getId());
+                        Hook hook = Hook.getInstance(HookType.on_record_mp4, "rtp", ssrcInfo.getStream(), mediaServerItem.getId());
                         // 设置过期时间，下载失败时自动处理订阅数据
                         hook.setExpireTime(System.currentTimeMillis() + 24 * 60 * 60 * 1000);
                         subscribe.addSubscribe(hook, hookEventForRecord);
@@ -1121,7 +1122,7 @@ public class PlayServiceImpl implements IPlayService {
             logger.warn("[获取下载进度] 下载已结束");
             return null;
         }
-        String app = "myrtp";
+        String app = "rtp";
         Long duration = mediaServerService.updateDownloadProcess(mediaServerItem, app, stream);
         if (duration == null || duration == 0) {
             inviteInfo.getStreamInfo().setProgress(0);
@@ -1171,7 +1172,7 @@ public class PlayServiceImpl implements IPlayService {
      * @return
      */
     public StreamInfo onPublishHandler(MediaServer mediaServerItem, MediaInfo mediaInfo, String deviceId, String channelId) {
-        StreamInfo streamInfo = mediaServerService.getStreamInfoByAppAndStream(mediaServerItem, "myrtp", mediaInfo.getStream(), mediaInfo, null);
+        StreamInfo streamInfo = mediaServerService.getStreamInfoByAppAndStream(mediaServerItem, "rtp", mediaInfo.getStream(), mediaInfo, null);
         streamInfo.setDeviceID(deviceId);
         streamInfo.setChannelId(channelId);
         return streamInfo;
@@ -1536,7 +1537,7 @@ public class PlayServiceImpl implements IPlayService {
         SendRtpItem sendRtpItem = redisCatchStorage.querySendRTPServer(device.getDeviceId(), channelId, stream, null);
         if (sendRtpItem != null) {
             MediaServer mediaServer = mediaServerService.getOne(sendRtpItem.getMediaServerId());
-            Boolean streamReady = mediaServerService.isStreamReady(mediaServer, "myrtp", sendRtpItem.getReceiveStream());
+            Boolean streamReady = mediaServerService.isStreamReady(mediaServer, "rtp", sendRtpItem.getReceiveStream());
             if (streamReady) {
                 logger.warn("[语音对讲] 进行中： {}", channelId);
                 event.call("语音对讲进行中");
@@ -1613,9 +1614,9 @@ public class PlayServiceImpl implements IPlayService {
                 MediaServer mediaServerItemInuse = mediaServerService.getOne(inviteInfo.getStreamInfo().getMediaServerId());
                 String streamUrl;
                 if (mediaServerItemInuse.getRtspPort() != 0) {
-                    streamUrl = String.format("rtsp://127.0.0.1:%s/%s/%s", mediaServerItemInuse.getRtspPort(), "myrtp", inviteInfo.getStreamInfo().getStream());
+                    streamUrl = String.format("rtsp://127.0.0.1:%s/%s/%s", mediaServerItemInuse.getRtspPort(), "rtp", inviteInfo.getStreamInfo().getStream());
                 } else {
-                    streamUrl = String.format("http://127.0.0.1:%s/%s/%s.live.mp4", mediaServerItemInuse.getHttpPort(), "myrtp", inviteInfo.getStreamInfo().getStream());
+                    streamUrl = String.format("http://127.0.0.1:%s/%s/%s.live.mp4", mediaServerItemInuse.getHttpPort(), "rtp", inviteInfo.getStreamInfo().getStream());
                 }
                 String path = "snap";
                 // 请求截图

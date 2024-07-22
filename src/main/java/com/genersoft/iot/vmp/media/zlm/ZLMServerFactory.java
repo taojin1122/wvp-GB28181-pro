@@ -52,9 +52,11 @@ public class ZLMServerFactory {
                     // 此时重新打开rtpServer
                     Map<String, Object> param = new HashMap<>();
                     param.put("stream_id", streamId);
+                    // 关闭rtp 重新创建
                     JSONObject jsonObject = zlmresTfulUtils.closeRtpServer(mediaServerItem, param);
                     if (jsonObject != null ) {
                         if (jsonObject.getInteger("code") == 0) {
+                            // 关闭后 重新调用该方法
                             return createRTPServer(mediaServerItem, streamId, ssrc, port,onlyAuto, reUsePort, tcpMode);
                         }else {
                             logger.warn("[开启rtpServer], 重启RtpServer错误");
@@ -72,7 +74,9 @@ public class ZLMServerFactory {
         if (tcpMode == null) {
             tcpMode = 0;
         }
+//        0 udp 模式，1 tcp 被动模式, 2 tcp 主动模式。 (兼容enable_tcp 为0/1)
         param.put("tcp_mode", tcpMode);
+//        该端口绑定的流ID，该端口只能创建这一个流(而不是根据ssrc创建多个)
         param.put("stream_id", streamId);
         if (reUsePort != null) {
             param.put("re_use_port", reUsePort?"1":"0");
@@ -83,6 +87,7 @@ public class ZLMServerFactory {
         }else {
             param.put("port", port);
         }
+        // 当use_ps 为0时，有效。为1时，发送音频；为0时，发送视频；不传时默认为0
         if (onlyAuto != null) {
             param.put("only_audio", onlyAuto?"1":"0");
         }

@@ -77,9 +77,9 @@ public class MediaServiceImpl implements IMediaService {
         if (app == null || stream == null) {
             return false;
         }
-//        if ("rtp".equals(app)) {
-//            return true;
-//        }
+        if ("rtp".equals(app)) {
+            return true;
+        }
         StreamAuthorityInfo streamAuthorityInfo = redisCatchStorage.getStreamAuthorityInfo(app, stream);
         if (streamAuthorityInfo == null || streamAuthorityInfo.getCallId() == null) {
             return true;
@@ -89,8 +89,8 @@ public class MediaServiceImpl implements IMediaService {
 
     @Override
     public ResultForOnPublish authenticatePublish(MediaServer mediaServer, String app, String stream, String params) {
-        // 推流鉴权的处理
-        if (!"myrtp".equals(app)) {
+        // 推流鉴权的处理 如果不是rtp协议，就是 拉流代理
+        if (!"rtp".equals(app)) {
             StreamProxyItem streamProxyItem = streamProxyService.getStreamProxyByAppAndStream(app, stream);
             if (streamProxyItem != null) {
                 ResultForOnPublish result = new ResultForOnPublish();
@@ -98,6 +98,7 @@ public class MediaServiceImpl implements IMediaService {
                 result.setEnable_mp4(streamProxyItem.isEnableMp4());
                 return result;
             }
+            // 开启推流鉴权
             if (userSetting.getPushAuthority()) {
                 // 对于推流进行鉴权
                 Map<String, String> paramMap = MediaServerUtils.urlParamToMap(params);
@@ -123,7 +124,7 @@ public class MediaServiceImpl implements IMediaService {
                 StreamAuthorityInfo streamAuthorityInfo = StreamAuthorityInfo.getInstanceByHook(app, stream, mediaServer.getId());
                 streamAuthorityInfo.setCallId(callId);
                 streamAuthorityInfo.setSign(sign);
-                // 鉴权通过
+                // 鉴权通过 添加redis缓存，根据应用和流id进行播放鉴权
                 redisCatchStorage.updateStreamAuthorityInfo(app, stream, streamAuthorityInfo);
             }
         }
@@ -133,17 +134,17 @@ public class MediaServiceImpl implements IMediaService {
         result.setEnable_audio(true);
 
         // 是否录像
-        if ("myrtp".equals(app)) {
+        if ("rtp".equals(app)) {
             result.setEnable_mp4(userSetting.getRecordSip());
         } else {
             result.setEnable_mp4(userSetting.isRecordPushLive());
         }
         // 国标流
-        if ("myrtp".equals(app)) {
+        if ("rtp".equals(app)) {
 
             InviteInfo inviteInfo = inviteStreamService.getInviteInfoByStream(null, stream);
 
-            // 单端口模式下修改流 ID
+            // 单端口模式下修改流ID  是否使用多端口模式
             if (!mediaServer.isRtpEnable() && inviteInfo == null) {
                 String ssrc = String.format("%010d", Long.parseLong(stream, 16));
                 inviteInfo = inviteStreamService.getInviteInfoBySSRC(ssrc);
@@ -154,7 +155,8 @@ public class MediaServiceImpl implements IMediaService {
                 }
             }
 
-            // 设置音频信息及录制信息
+            // 设置音频信息及录制信息 获取所有的流事务
+            // 什么时候创建的事务？ 在点播 发送invite命令成功后，添加事务     SIPCommander 379 行
             List<SsrcTransaction> ssrcTransactionForAll = sessionManager.getSsrcTransactionForAll(null, null, null, stream);
             if (ssrcTransactionForAll != null && ssrcTransactionForAll.size() == 1) {
 
@@ -164,10 +166,12 @@ public class MediaServiceImpl implements IMediaService {
                 streamAuthorityInfo.setStream(ssrcTransactionForAll.get(0).getStream());
                 streamAuthorityInfo.setCallId(ssrcTransactionForAll.get(0).getSipTransactionInfo().getCallId());
 
+                // 鉴权通过 添加redis缓存，根据应用和流id进行播放鉴权
                 redisCatchStorage.updateStreamAuthorityInfo(app, ssrcTransactionForAll.get(0).getStream(), streamAuthorityInfo);
 
                 String deviceId = ssrcTransactionForAll.get(0).getDeviceId();
                 String channelId = ssrcTransactionForAll.get(0).getChannelId();
+                // 查询设备通道
                 DeviceChannel deviceChannel = storager.queryChannel(deviceId, channelId);
                 if (deviceChannel != null) {
                     result.setEnable_audio(deviceChannel.getHasAudio());
@@ -180,14 +184,18 @@ public class MediaServiceImpl implements IMediaService {
                         String startTime = inviteInfoForDownload.getStreamInfo().getStartTime();
                         String endTime = inviteInfoForDownload.getStreamInfo().getEndTime();
                         long difference = DateUtil.getDifference(startTime, endTime) / 1000;
+                        //  mp4录制切片大小，单位秒
                         result.setMp4_max_second((int) difference);
+                        // 是否允许mp4录制
                         result.setEnable_mp4(true);
+                        // 该流是否开启时间戳覆盖(0:绝对时间戳/1:系统时间戳/2:相对时间戳)
                         // 设置为2保证得到的mp4的时长是正常的
                         result.setModify_stamp(2);
                     }
                 }
                 // 如果是talk对讲，则默认获取声音
                 if (ssrcTransactionForAll.get(0).getType() == InviteSessionType.TALK) {
+                    // 转协议时是否开启音频
                     result.setEnable_audio(true);
                 }
             }
@@ -196,7 +204,9 @@ public class MediaServiceImpl implements IMediaService {
         } else if (app.equals("talk")) {
             result.setEnable_audio(true);
         }
-        if (app.equalsIgnoreCase("myrtp")) {
+
+        if (app.equalsIgnoreCase("rtp")) {
+            // 第三方rtp？
             String receiveKey = VideoManagerConstants.WVP_OTHER_RECEIVE_RTP_INFO + userSetting.getServerId() + "_" + stream;
             OtherRtpSendInfo otherRtpSendInfo = (OtherRtpSendInfo) redisTemplate.opsForValue().get(receiveKey);
 
@@ -213,7 +223,7 @@ public class MediaServiceImpl implements IMediaService {
     public boolean closeStreamOnNoneReader(String mediaServerId, String app, String stream, String schema) {
         boolean result = false;
         // 国标类型的流
-        if ("myrtp".equals(app)) {
+        if ("rtp".equals(app)) {
             result = userSetting.getStreamOnDemand();
             // 国标流， 点播/录像回放/录像下载
             InviteInfo inviteInfo = inviteStreamService.getInviteInfoByStream(null, stream);

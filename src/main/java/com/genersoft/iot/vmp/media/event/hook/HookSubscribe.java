@@ -31,7 +31,8 @@ public class HookSubscribe {
      *  通过调用 ApplicationEventPublisher 的 publishEvent 方法来完成事件的发布
      *
      * 使用了 @EventListener 注解，并且其参数是 MediaArrivalEvent 类型，
-     * 因此当发布的事件是 MediaArrivalEvent 或其子类的实例时，Spring 会自动将事件传递给这个方法。
+     * 当Spring应用上下文中发布了一个MediaArrivalEvent类型的事件时，这个方法会被自动调用。
+     * 在这个事件在 ZLMHttpHookListener类中，zlm回调 流注册接口时（/on_stream_changed） 进行事件发布
      */
     @Async("taskExecutor")
     @EventListener

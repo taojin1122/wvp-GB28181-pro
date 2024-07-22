@@ -261,7 +261,7 @@ public class ZLMRESTfulUtils {
     }
 
     /**
-     *  请求 /index/api/getRtpInfo 接口
+     *  请求 /index/api/getRtpInfo 接口  通过流id获取rtp信息
      *  功能：获取rtp代理时的某路ssrc rtp信息
      * @param mediaServerItem
      * @param stream_id

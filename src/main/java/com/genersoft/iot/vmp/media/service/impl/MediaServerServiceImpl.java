@@ -152,7 +152,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
      * @param mediaServer
      * @param streamId
      * @param presetSsrc
-     * @param ssrcCheck
+     * @param ssrcCheck 是否开启ssrc校验，默认关闭，开启可以防止串流
      * @param isPlayback
      * @param port
      * @param onlyAuto
@@ -189,15 +189,17 @@ public class MediaServerServiceImpl implements IMediaServerService {
             logger.warn("[openRTPServer] 平台对接时下级可能自定义ssrc，但是tcp模式zlm收流目前无法更新ssrc，可能收流超时，此时请使用udp收流或者关闭ssrc校验");
         }
         int rtpServerPort;
+        // 是否使用多端口模式
         if (mediaServer.isRtpEnable()) {
             IMediaNodeServerService mediaNodeServerService = nodeServerServiceMap.get(mediaServer.getType());
             if (mediaNodeServerService == null) {
                 logger.info("[openRTPServer] 失败, mediaServer的类型： {}，未找到对应的实现类", mediaServer.getType());
                 return null;
             }
-            // 是否开启ssrc校验，默认关闭，开启可以防止串流 ssrcCheck
+            // 是否开启ssrc校验，默认关闭，开启可以防止串流 ssrcCheck 返回rtp 传输数据的端口
             rtpServerPort = mediaNodeServerService.createRTPServer(mediaServer, streamId, ssrcCheck ? Long.parseLong(ssrc) : 0, port, onlyAuto, disableAudio, reUsePort, tcpMode);
         } else {
+            // 配置文件的端口
             rtpServerPort = mediaServer.getRtpProxyPort();
         }
         return new SSRCInfo(rtpServerPort, ssrc, streamId);
@@ -249,7 +251,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
             logger.info("[closeRTPServer] 失败, mediaServer的类型： {}，未找到对应的实现类", mediaServer.getType());
             return;
         }
-        mediaNodeServerService.closeStreams(mediaServer, "myrtp", streamId);
+        mediaNodeServerService.closeStreams(mediaServer, "rtp", streamId);
     }
 
     @Override
@@ -909,7 +911,7 @@ public class MediaServerServiceImpl implements IMediaServerService {
         sendRtpItem.setChannelId(channelId);
         sendRtpItem.setTcp(isTcp);
         sendRtpItem.setRtcp(rtcp);
-        sendRtpItem.setApp("myrtp");
+        sendRtpItem.setApp("rtp");
         sendRtpItem.setLocalPort(localPort);
         sendRtpItem.setServerId(userSetting.getServerId());
         sendRtpItem.setMediaServerId(mediaServer.getId());

@@ -20,11 +20,17 @@ public class HookResultForOnPublish extends HookResult{
 
     public static HookResultForOnPublish getInstance(ResultForOnPublish resultForOnPublish){
         HookResultForOnPublish successResult = new HookResultForOnPublish(0, "success");
+        // 转协议时是否开启音频
         successResult.setEnable_audio(resultForOnPublish.isEnable_audio());
+        // 是否允许mp4录制
         successResult.setEnable_mp4(resultForOnPublish.isEnable_mp4());
+        // 该流是否开启时间戳覆盖(0:绝对时间戳/1:系统时间戳/2:相对时间戳)
         successResult.setModify_stamp(resultForOnPublish.getModify_stamp());
+        // 是否修改流id, 通过此参数可以自定义流id(譬如替换ssrc)
         successResult.setStream_replace(resultForOnPublish.getStream_replace());
+        // mp4录制切片大小，单位秒
         successResult.setMp4_max_second(resultForOnPublish.getMp4_max_second());
+        // mp4录制文件保存根目录，置空使用默认
         successResult.setMp4_save_path(resultForOnPublish.getMp4_save_path());
         return successResult;
     }

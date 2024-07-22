@@ -30,7 +30,7 @@ public class VideoStreamSessionManager {
 
 	/**
 	 *  添加一个点播/回放的事务信息
-	 * 后续可以通过流Id/callID
+	 *  后续可以通过流Id/callID
 	 * @param deviceId 设备ID
 	 * @param channelId 通道ID
 	 * @param callId 一次请求的CallID
